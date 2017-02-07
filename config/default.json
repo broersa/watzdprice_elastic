@@ -1,0 +1,9 @@
+{
+  "shop": "*",
+  "db_user": "db_user",
+  "db_password": "db_password",
+  "db_host": "db_host",
+  "db_name": "db_name",
+  "elastic_url": "elastic_url",
+  "elastic_index": "elastic_index"
+}
