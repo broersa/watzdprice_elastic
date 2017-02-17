@@ -32,7 +32,7 @@ module.exports = {
         done();
         return cb(err);
       }
-      var query = new QueryStream('SELECT proid, proname, prodescription FROM product');
+      var query = new QueryStream('SELECT proid, proname, prodescription FROM product limit 10');
       var stream = client.query(query);
       // release the client when the stream is finished
       stream.on('end', function() {
@@ -92,7 +92,20 @@ module.exports = {
               if (err) {
                 return cb(err);
               }
-              return cb();
+              elasticClient.cat.indices({format: 'json', index: elastic_index+'_*'}, function (err, resp) {
+                if (err) {
+                  return cb(err);
+                }
+                var indices = [];
+                for (var i = 0; i < resp.length; i++ ) {
+                  if (resp[i].index !== index) {
+                    indices.push(resp[i].index);
+                  }
+                }
+                console.log(indices);
+                return cb();
+
+              });
             });
           });
         }
