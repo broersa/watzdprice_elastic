@@ -57,27 +57,45 @@ module.exports = {
         // });
 
         if (c%1000===0) {
-          elasticClient.bulk(bulk);
-          bulk.body = [];
+          elasticClient.bulk(bulk, function (err, resp) {
+            if (err) {
+              return cb(err);
+            }
+            bulk.body = [];
+            console.log(c);
+            return cb();
+          });
+        } else {
+          return cb();
         }
-        return cb();
       }, {parallel: 1});
+      transformer.on('error',function(err){
+          done();
+          return cb(err);
+      });
       transformer.on('finish',function(){
         if (c%1000!==0) {
-          elasticClient.bulk(bulk);
+          elasticClient.bulk(bulk, function (err, resp) {
+            if (err) {
+              done();
+              return cb(err);
+            }
+            done();
+            elasticClient.indices.updateAliases({
+              body: {
+                actions: [
+                  { remove: { index: elastic_index+'_*', alias: elastic_index } },
+                  { add:    { index: index, alias: elastic_index } }
+                ]
+              }
+            }, function (err, resp) {
+              if (err) {
+                return cb(err);
+              }
+              return cb();
+            });
+          });
         }
-        elasticClient.indices.updateAliases({
-          body: {
-            actions: [
-              { remove: { index: elastic_index+'_*', alias: elastic_index } },
-              { add:    { index: index, alias: elastic_index } }
-            ]
-          }
-        }).then(function (response) {
-          console.log(response);
-          done();
-          return cb();
-        });
       });
 
       stream.pipe(transformer);
