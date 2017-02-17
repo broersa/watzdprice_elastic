@@ -32,7 +32,7 @@ module.exports = {
         done();
         return cb(err);
       }
-      var query = new QueryStream('SELECT proid, proname, prodescription FROM product limit 10');
+      var query = new QueryStream('SELECT proid, proname, prodescription FROM product');
       var stream = client.query(query);
       // release the client when the stream is finished
       stream.on('end', function() {
@@ -62,7 +62,6 @@ module.exports = {
               return cb(err);
             }
             bulk.body = [];
-            console.log(c);
             return cb();
           });
         } else {
