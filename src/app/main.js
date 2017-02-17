@@ -102,8 +102,12 @@ module.exports = {
                     indices.push(resp[i].index);
                   }
                 }
-                console.log(indices);
-                return cb();
+                elasticClient.indices.delete({index: indices}, function (err, resp) {
+                  if (err) {
+                    return cb(err);
+                  }
+                  return cb();
+                });
 
               });
             });
