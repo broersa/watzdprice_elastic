@@ -57,27 +57,61 @@ module.exports = {
         // });
 
         if (c%1000===0) {
-          elasticClient.bulk(bulk);
-          bulk.body = [];
+          elasticClient.bulk(bulk, function (err, resp) {
+            if (err) {
+              return cb(err);
+            }
+            bulk.body = [];
+            return cb();
+          });
+        } else {
+          return cb();
         }
-        return cb();
       }, {parallel: 1});
+      transformer.on('error',function(err){
+          done();
+          return cb(err);
+      });
       transformer.on('finish',function(){
         if (c%1000!==0) {
-          elasticClient.bulk(bulk);
+          elasticClient.bulk(bulk, function (err, resp) {
+            if (err) {
+              done();
+              return cb(err);
+            }
+            done();
+            elasticClient.indices.updateAliases({
+              body: {
+                actions: [
+                  { remove: { index: elastic_index+'_*', alias: elastic_index } },
+                  { add:    { index: index, alias: elastic_index } }
+                ]
+              }
+            }, function (err, resp) {
+              if (err) {
+                return cb(err);
+              }
+              elasticClient.cat.indices({format: 'json', index: elastic_index+'_*'}, function (err, resp) {
+                if (err) {
+                  return cb(err);
+                }
+                var indices = [];
+                for (var i = 0; i < resp.length; i++ ) {
+                  if (resp[i].index !== index) {
+                    indices.push(resp[i].index);
+                  }
+                }
+                elasticClient.indices.delete({index: indices}, function (err, resp) {
+                  if (err) {
+                    return cb(err);
+                  }
+                  return cb();
+                });
+
+              });
+            });
+          });
         }
-        elasticClient.indices.updateAliases({
-          body: {
-            actions: [
-              { remove: { index: elastic_index+'_*', alias: elastic_index } },
-              { add:    { index: index, alias: elastic_index } }
-            ]
-          }
-        }).then(function (response) {
-          console.log(response);
-          done();
-          return cb();
-        });
       });
 
       stream.pipe(transformer);
