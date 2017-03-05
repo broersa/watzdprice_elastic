@@ -8,6 +8,6 @@ main.process(config.shop, {
   name: config.db_name
 }, config.elastic_url, config.elastic_index, function (err) {
   if (err) {
-    return console.error(err);
+    return console.error(JSON.stringify(err));
   }
 });

@@ -2,9 +2,8 @@ var moment = require('moment');
 var pg = require('pg');
 var QueryStream = require('pg-query-stream');
 var transform = require('stream-transform');
-var url = require('url');
-var http = require('http');
 var elasticsearch = require('elasticsearch');
+var MyError = require('../MyError.js');
 
 module.exports = {
   process: function(shop, dbconfig, elastic_url, elastic_index, cb) {
@@ -19,7 +18,7 @@ module.exports = {
     var pool = new pg.Pool(configuration);
 
     pool.on('error', function (err) {
-      console.error(err)
+      console.error(JSON.stringify(err));
     });
 
     var elasticClient = new elasticsearch.Client({
@@ -30,7 +29,7 @@ module.exports = {
     pool.connect(function(err, client, done) {
       if (err) {
         done();
-        return cb(err);
+        return cb(new MyError('ERROR', 'process', 'Error', {shop: shop, dbconfig_name: dbconfig.name, elastic_url: elastic_url, elastic_index: elastic_index}, err));
       }
       var query = new QueryStream('SELECT proid, proname, prodescription FROM product');
       var stream = client.query(query);
@@ -59,7 +58,7 @@ module.exports = {
         if (c%1000===0) {
           elasticClient.bulk(bulk, function (err, resp) {
             if (err) {
-              return cb(err);
+              return cb(new MyError('ERROR', 'process', 'Error', {shop: shop, dbconfig_name: dbconfig.name, elastic_url: elastic_url, elastic_index: elastic_index}, err));
             }
             bulk.body = [];
             return cb();
@@ -70,14 +69,14 @@ module.exports = {
       }, {parallel: 1});
       transformer.on('error',function(err){
           done();
-          return cb(err);
+          return cb(new MyError('ERROR', 'process', 'Error', {shop: shop, dbconfig_name: dbconfig.name, elastic_url: elastic_url, elastic_index: elastic_index}, err));
       });
       transformer.on('finish',function(){
         if (c%1000!==0) {
           elasticClient.bulk(bulk, function (err, resp) {
             if (err) {
               done();
-              return cb(err);
+              return cb(new MyError('ERROR', 'process', 'Error', {shop: shop, dbconfig_name: dbconfig.name, elastic_url: elastic_url, elastic_index: elastic_index}, err));
             }
             done();
             elasticClient.indices.updateAliases({
@@ -89,11 +88,11 @@ module.exports = {
               }
             }, function (err, resp) {
               if (err) {
-                return cb(err);
+                return cb(new MyError('ERROR', 'process', 'Error', {shop: shop, dbconfig_name: dbconfig.name, elastic_url: elastic_url, elastic_index: elastic_index}, err));
               }
               elasticClient.cat.indices({format: 'json', index: elastic_index+'_*'}, function (err, resp) {
                 if (err) {
-                  return cb(err);
+                  return cb(new MyError('ERROR', 'process', 'Error', {shop: shop, dbconfig_name: dbconfig.name, elastic_url: elastic_url, elastic_index: elastic_index}, err));
                 }
                 var indices = [];
                 for (var i = 0; i < resp.length; i++ ) {
@@ -101,13 +100,16 @@ module.exports = {
                     indices.push(resp[i].index);
                   }
                 }
-                elasticClient.indices.delete({index: indices}, function (err, resp) {
-                  if (err) {
-                    return cb(err);
-                  }
+                if (indices.length>0) {
+                  elasticClient.indices.delete({index: indices}, function (err, resp) {
+                    if (err) {
+                      return cb(new MyError('ERROR', 'process', 'Error', {shop: shop, dbconfig_name: dbconfig.name, elastic_url: elastic_url, elastic_index: elastic_index}, err));
+                    }
+                    return cb();
+                  });
+                } else {
                   return cb();
-                });
-
+                }
               });
             });
           });
