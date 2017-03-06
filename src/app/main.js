@@ -31,7 +31,7 @@ module.exports = {
         done();
         return cb(new MyError('ERROR', 'process', 'Error', {shop: shop, dbconfig_name: dbconfig.name, elastic_url: elastic_url, elastic_index: elastic_index}, err));
       }
-      var query = new QueryStream('SELECT proid, proname, prodescription FROM product');
+      var query = new QueryStream('SELECT proid, proname, prodescription, proimage, proprice FROM product');
       var stream = client.query(query);
       // release the client when the stream is finished
       stream.on('end', function() {
@@ -43,7 +43,7 @@ module.exports = {
       var transformer = transform(function (record, cb) {
         c++;
         bulk.body.push({index: {_index: index, _type: 'product', _id: record.proid }});
-        bulk.body.push({name: record.proname, description: record.prodescription});
+        bulk.body.push({name: record.proname, description: record.prodescription, image: record.proimage, price: record.proprice });
 
         // elasticClient.indices.analyze({
         //   index: 'nl-nl',
